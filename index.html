@@ -1,3 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bijou — Review Conversion Dashboard</title>
+<style>
+:root {
+  --bg: #0d0f18;
+  --surf: #161924;
+  --surf2: #1e2235;
+  --border: #2a2f45;
+  --text: #e4e8f0;
+  --muted: #7a849a;
+  --accent: #5b8def;
+  --green: #22c55e;
+  --yellow: #f59e0b;
+  --red: #ef4444;
+  --airbnb: #ff5a5f;
+  --vrbo: #1d72d8;
+  --bdc: #0a7abf;
+  --exp: #f0b800;
+  --gold: #f5c518;
+  --silver: #a8b2c0;
+  --bronze: #cd7f32;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, 'Segoe UI', system-ui, sans-serif; font-size: 13px; }
+
+/* ── Header ── */
+.hdr { background: var(--surf); border-bottom: 1px solid var(--border); padding: 16px 28px; display: flex; align-items: center; justify-content: space-between; }
+.hdr-title { font-size: 17px; font-weight: 800; }
+.hdr-title span { color: var(--accent); }
+.hdr-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.live-dot { display: inline-flex; align-items: center; gap: 6px; background: #22c55e18; color: var(--green); border: 1px solid #22c55e35; border-radius: 20px; padding: 4px 12px; font-size: 11px; font-weight: 700; }
+.live-dot::before { content: '●'; font-size: 8px; }
+
+/* ── Section wrappers ── */
+.section { padding: 28px 28px 0; max-width: 1380px; margin: 0 auto; }
+.section:last-child { padding-bottom: 48px; }
+.section-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin-bottom: 16px; }
+.divider { border: none; border-top: 1px solid var(--border); margin: 32px 28px 0; }
+
+/* ── KPI row ── */
+.kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+.kpi { background: var(--surf); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+.kpi .kv { font-size: 28px; font-weight: 900; line-height: 1; }
+.kpi .kl { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+.kpi .ks { font-size: 10px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
+
+/* ── Alerts / notes ── */
+.note { border-radius: 8px; padding: 9px 13px; font-size: 11px; line-height: 1.5; }
+.note.warn { background: #f59e0b12; border: 1px solid #f59e0b30; color: #f59e0b; }
+.note.info { background: #5b8def12; border: 1px solid #5b8def30; color: #5b8def; }
+.note.crit { background: #ef444412; border: 1px solid #ef444430; color: #ef4444; }
+.note strong { font-weight: 800; }
+
+/* ── Chip ── */
+.chip { display: inline-block; padding: 2px 8px; border-radius: 4px; font-weight: 800; font-size: 11px; }
+.chip.g { background: #22c55e18; color: var(--green); border: 1px solid #22c55e30; }
+.chip.y { background: #f59e0b18; color: var(--yellow); border: 1px solid #f59e0b30; }
+.chip.r { background: #ef444418; color: var(--red); border: 1px solid #ef444430; }
+.chip.na { background: var(--surf2); color: var(--muted); border: 1px solid var(--border); }
+.chip.sm { background: #8892a418; color: var(--muted); border: 1px solid #8892a430; font-style: italic; }
+.raw-sub { font-size: 9px; color: var(--muted); margin-top: 2px; }
+.dim { color: var(--muted); }
+
+/* ════════════════════════════════════════
+   PODIUM LEADERBOARD
+════════════════════════════════════════ */
+.podium-subtitle { font-size: 11px; color: var(--muted); margin: -8px 0 24px; }
+
+/* The three-up podium row */
+.podium-stage {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: flex-end;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+/* Each podium card */
+.pod-card {
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  transition: transform .15s;
+}
+.pod-card:hover { transform: translateY(-3px); }
+
+/* Color-coded top accent bar */
+.pod-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  border-radius: 16px 16px 0 0;
+}
+.pod-1::after { background: var(--gold); }
+.pod-2::after { background: var(--silver); }
+.pod-3::after { background: var(--bronze); }
+
+/* Height-stepping: 1st tallest, 2nd medium, 3rd shortest */
+.pod-1 { padding: 28px 20px 22px; border-color: #f5c51855; background: linear-gradient(160deg, #161924, #1d1a08); }
+.pod-2 { padding: 20px 20px 22px; border-color: #a8b2c033; margin-bottom: 0; }
+.pod-3 { padding: 14px 20px 22px; border-color: #cd7f3233; background: linear-gradient(160deg, #161924, #1a1509); }
+
+/* Rank badge */
+.pod-rank {
+  font-size: 38px;
+  line-height: 1;
+  margin-bottom: 10px;
+}
+.pod-1 .pod-rank { font-size: 48px; }
+
+/* Podium number label below card (the "block") */
+.pod-block {
+  height: 4px;
+  border-radius: 0 0 8px 8px;
+  margin-top: 0;
+}
+.pod-1 .pod-block { background: var(--gold); }
+.pod-2 .pod-block { background: var(--silver); }
+.pod-3 .pod-block { background: var(--bronze); }
+
+.pod-name { font-size: 18px; font-weight: 900; margin-bottom: 2px; }
+.pod-1 .pod-name { font-size: 22px; }
+.pod-reg { font-size: 11px; color: var(--muted); margin-bottom: 16px; }
+
+.pod-metrics { display: flex; gap: 14px; justify-content: center; }
+.pod-1 .pod-metrics { gap: 20px; }
+.pod-m { display: flex; flex-direction: column; align-items: center; }
+.pod-mv { font-size: 20px; font-weight: 900; line-height: 1; }
+.pod-1 .pod-mv { font-size: 26px; }
+.pod-ml { font-size: 8px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-top: 3px; }
+
+/* Score colors */
+.score-color-hi { color: var(--accent); }
+.score-color-lo { color: var(--red); }
+.conv-color-y   { color: var(--yellow); }
+.conv-color-r   { color: var(--red); }
+
+/* 4th place — flat full-width card */
+.pod-4th {
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--muted);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 20px;
+  margin-bottom: 28px;
+}
+.pod-4th-rank { font-size: 22px; font-weight: 900; color: var(--muted); min-width: 40px; text-align: center; }
+.pod-4th-info .va-name { font-size: 15px; font-weight: 800; }
+.pod-4th-info .va-reg  { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.pod-4th-metrics { display: flex; gap: 28px; margin-left: auto; }
+.pod-4th-m { text-align: center; }
+.pod-4th-m .mv { font-size: 18px; font-weight: 900; line-height: 1; }
+.pod-4th-m .ml { font-size: 8px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-top: 3px; }
+
+/* Score detail table */
+.score-detail { background: var(--surf); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
+.score-detail table { width: 100%; border-collapse: collapse; }
+.score-detail th { padding: 9px 14px; background: var(--surf2); border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); text-align: left; }
+.score-detail th:not(:first-child) { text-align: center; }
+.score-detail td { padding: 11px 14px; border-bottom: 1px solid var(--border); }
+.score-detail td:not(:first-child) { text-align: center; }
+.score-detail tr:last-child td { border-bottom: none; }
+.va-badge { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
+.diff { font-size: 12px; font-weight: 800; }
+.diff.pos { color: var(--green); }
+.diff.neg { color: var(--red); }
+
+/* ════════════════════════════════════════
+   CHANNEL CARDS
+════════════════════════════════════════ */
+.ch-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 10px; }
+.ch-card { background: var(--surf); border: 1px solid var(--border); border-radius: 14px; padding: 18px 16px; position: relative; overflow: hidden; }
+.ch-card::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.ch-card.airbnb::after { background: var(--airbnb); }
+.ch-card.vrbo::after  { background: var(--vrbo); }
+.ch-card.bdc::after   { background: var(--bdc); }
+.ch-card.exp::after   { background: var(--exp); }
+.ch-head { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.ch-dot { width: 9px; height: 9px; border-radius: 50%; }
+.ch-dot.airbnb { background: var(--airbnb); }
+.ch-dot.vrbo   { background: var(--vrbo); }
+.ch-dot.bdc    { background: var(--bdc); }
+.ch-dot.exp    { background: var(--exp); }
+.ch-name { font-size: 13px; font-weight: 800; }
+.win-rows { display: flex; flex-direction: column; gap: 10px; }
+.win-row { display: flex; align-items: center; gap: 8px; }
+.wlabel { font-size: 10px; font-weight: 800; color: var(--muted); width: 24px; text-align: right; }
+.track { flex: 1; background: var(--surf2); border-radius: 3px; height: 7px; overflow: hidden; }
+.bar { height: 100%; border-radius: 3px; transition: width .7s cubic-bezier(.4,0,.2,1); }
+.bar.airbnb { background: linear-gradient(90deg,#ff5a5f,#ff8a8e); }
+.bar.vrbo   { background: linear-gradient(90deg,#1d72d8,#5ba3f5); }
+.bar.bdc    { background: linear-gradient(90deg,#0a7abf,#22b4e0); }
+.bar.exp    { background: linear-gradient(90deg,#f0b800,#ffe066); }
+.pct { font-size: 12px; font-weight: 800; width: 40px; text-align: right; }
+.raw { font-size: 10px; color: var(--muted); width: 52px; text-align: right; }
+.g { color: var(--green); }
+.y { color: var(--yellow); }
+.r { color: var(--red); }
+.legend { display: flex; gap: 16px; font-size: 10px; color: var(--muted); margin: 10px 0 16px; flex-wrap: wrap; }
+.lg { display: flex; align-items: center; gap: 5px; }
+.lgd { width: 8px; height: 8px; border-radius: 2px; }
+
+/* ════════════════════════════════════════
+   REGION TABLES
+════════════════════════════════════════ */
+.region-block { margin-bottom: 28px; }
+.region-hdr { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--surf2); border: 1px solid var(--border); border-radius: 10px 10px 0 0; border-bottom: none; }
+.region-hdr .emoji { font-size: 18px; }
+.region-hdr .rname { font-size: 13px; font-weight: 800; }
+.region-hdr .rva   { font-size: 11px; color: var(--muted); margin-left: auto; }
+.ch-table { width: 100%; border-collapse: collapse; }
+.ch-table th { padding: 8px 12px; background: var(--surf); border: 1px solid var(--border); font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; text-align: center; }
+.ch-table th.left { text-align: left; }
+.ch-table td { padding: 9px 12px; background: var(--surf); border: 1px solid var(--border); text-align: center; vertical-align: middle; }
+.ch-table tr:last-child td:first-child { border-radius: 0 0 0 10px; }
+.ch-table tr:last-child td:last-child  { border-radius: 0 0 10px 0; }
+
+@media (max-width: 960px) {
+  .ch-grid { grid-template-columns: repeat(2,1fr); }
+  .kpi-row { grid-template-columns: repeat(2,1fr); }
+  .podium-stage { grid-template-columns: 1fr 1fr 1fr; }
+  .pod-4th-metrics { gap: 14px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div class="hdr">
+  <div>
+    <div class="hdr-title">Bijou Getaways &mdash; <span>Review Conversion</span> Dashboard</div>
+    <div class="hdr-sub">Guesty · Expedia Partner Central &nbsp;·&nbsp; As of June 10, 2026</div>
+  </div>
+  <div class="live-dot">LIVE</div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     SECTION 1 — VA LEADERBOARD (PODIUM)
+════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">🏆 VA Leaderboard &nbsp;·&nbsp; Quarter-to-Date (Apr 1 – Jun 10, 2026)</div>
+  <div class="podium-subtitle">Ranked by QTD conversion rate — reviews ÷ checkouts across all 4 channels</div>
+
+  <!-- Three-up podium -->
+  <div class="podium-stage">
+
+    <!-- 2nd — Nicolas (left) -->
+    <div class="pod-card pod-2">
+      <div class="pod-rank">🥈</div>
+      <div class="pod-name">Nicolas</div>
+      <div class="pod-reg">🌊 USVI · St. John</div>
+      <div class="pod-metrics">
+        <div class="pod-m">
+          <div class="pod-mv conv-color-y">23.5%</div>
+          <div class="pod-ml">Conv QTD</div>
+        </div>
+        <div class="pod-m">
+          <div class="pod-mv" style="color:var(--text)">23<span style="font-size:11px;font-weight:500;color:var(--muted)">/98</span></div>
+          <div class="pod-ml">Reviews/Stays</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1st — Baptiste (center, tallest) -->
+    <div class="pod-card pod-1">
+      <div class="pod-rank">🥇</div>
+      <div class="pod-name">Baptiste</div>
+      <div class="pod-reg">🗼🏝️ Paris + Miami</div>
+      <div class="pod-metrics">
+        <div class="pod-m">
+          <div class="pod-mv conv-color-y">23.7%</div>
+          <div class="pod-ml">Conv QTD</div>
+        </div>
+        <div class="pod-m">
+          <div class="pod-mv" style="color:var(--text)">18<span style="font-size:14px;font-weight:500;color:var(--muted)">/76</span></div>
+          <div class="pod-ml">Reviews/Stays</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3rd — Luis (right) -->
+    <div class="pod-card pod-3">
+      <div class="pod-rank">🥉</div>
+      <div class="pod-name">Luis</div>
+      <div class="pod-reg">🌺 Hawaii · Maui</div>
+      <div class="pod-metrics">
+        <div class="pod-m">
+          <div class="pod-mv conv-color-y">21.3%</div>
+          <div class="pod-ml">Conv QTD</div>
+        </div>
+        <div class="pod-m">
+          <div class="pod-mv" style="color:var(--text)">29<span style="font-size:11px;font-weight:500;color:var(--muted)">/136</span></div>
+          <div class="pod-ml">Reviews/Stays</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /podium-stage -->
+
+  <!-- 4th — Luna (flat card below) -->
+  <div class="pod-4th">
+    <div class="pod-4th-rank">4th</div>
+    <div class="pod-4th-info">
+      <div class="va-name">Luna</div>
+      <div class="va-reg">🍷 Napa Valley</div>
+    </div>
+    <div class="pod-4th-metrics">
+      <div class="pod-4th-m">
+        <div class="mv" style="color:var(--yellow)">18.9%</div>
+        <div class="ml">Conv QTD</div>
+      </div>
+      <div class="pod-4th-m">
+        <div class="mv" style="color:var(--text)">39 <span style="font-size:12px;font-weight:500;color:var(--muted)">/ 206</span></div>
+        <div class="ml">Reviews / Stays</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Score detail table -->
+  <div class="section-label" style="margin-top:4px;">QTD Detail by VA</div>
+  <div class="score-detail">
+    <table>
+      <thead><tr>
+        <th>VA</th><th>Region</th><th>QTD Conv.</th><th>Reviews / Stays</th><th>Airbnb</th><th>VRBO</th><th>BDC</th><th>Expedia</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="va-badge" style="color:var(--gold)">🥇 Baptiste</span></td>
+          <td>Paris + Miami</td>
+          <td><span class="chip y">23.7%</span></td>
+          <td>18 / 76</td>
+          <td>45.5%&nbsp;<span class="dim">5/11</span></td>
+          <td>100%&nbsp;<span class="dim">5/5</span></td>
+          <td><span class="dim">11.1%&nbsp;3/27</span></td>
+          <td><span class="dim">15.2%&nbsp;5/33</span></td>
+        </tr>
+        <tr>
+          <td><span class="va-badge" style="color:var(--silver)">🥈 Nicolas</span></td>
+          <td>USVI</td>
+          <td><span class="chip y">23.5%</span></td>
+          <td>23 / 98</td>
+          <td>38.9%&nbsp;<span class="dim">7/18</span></td>
+          <td>42.9%&nbsp;<span class="dim">3/7</span></td>
+          <td><span class="dim">7.1%&nbsp;1/14</span></td>
+          <td><span class="dim">20.3%&nbsp;12/59</span></td>
+        </tr>
+        <tr>
+          <td><span class="va-badge" style="color:var(--bronze)">🥉 Luis</span></td>
+          <td>Hawaii</td>
+          <td><span class="chip y">21.3%</span></td>
+          <td>29 / 136</td>
+          <td>50.0%&nbsp;<span class="dim">9/18</span></td>
+          <td><span class="dim">0%&nbsp;0/2</span></td>
+          <td><span class="dim">8.5%&nbsp;4/47</span></td>
+          <td>23.2%&nbsp;<span class="dim">16/69</span></td>
+        </tr>
+        <tr>
+          <td><span class="va-badge">4. Luna</span></td>
+          <td>Napa</td>
+          <td><span class="chip y">18.9%</span></td>
+          <td>39 / 206</td>
+          <td>42.9%&nbsp;<span class="dim">15/35</span></td>
+          <td>20.0%&nbsp;<span class="dim">2/10</span></td>
+          <td><span class="dim">11.1%&nbsp;5/45</span></td>
+          <td><span class="dim">14.7%&nbsp;17/116</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Insight boxes -->
+  <div class="note crit" style="margin-top:12px;">
+    <strong>🚨 No VA is hitting 25% QTD conversion target.</strong> Baptiste leads at 23.7% but only 76 total checkouts (small-sample caution). Luna has the highest volume (39 reviews, 206 stays) but lowest conversion at 18.9%.
+  </div>
+  <div class="note warn" style="margin-top:8px;">
+    <strong>⚠️ BDC across all regions critically low</strong> — Baptiste 11.1%, Nicolas 7.1%, Luis 8.5%, Luna 11.1%. Booking.com review reminders urgently needed portfolio-wide.
+  </div>
+  <div class="note info" style="margin-top:8px;">
+    <strong>ℹ️ Expedia source note:</strong> "Residence at the Four Seasons" emails mapped to France/Miami (Baptiste) based on property portfolio. Grand Champions mapped to Hawaii. 63 Expedia reviews tracked over 90 days from Expedia Partner Central email receipts.
+  </div>
+  <div style="padding:14px 18px; background:var(--surf); border:1px solid var(--border); border-radius:12px; margin-top:12px;">
+    <div class="section-label" style="margin-bottom:8px;">Methodology</div>
+    <div style="font-size:11px; color:var(--muted); line-height:1.8;">
+      <strong style="color:var(--text)">Conversion rate</strong> — reviews ÷ checkouts in the window. All 4 channels. Airbnb, VRBO, BDC from Guesty "GUEST'S REVIEW CREATED AT" column. Expedia from "You have a new review" emails (noreply@expediapartnercentral.com → admin@bijougetaways.com); Real-time Feedback emails excluded.<br>
+      <strong style="color:var(--text)">Target</strong> — 25%+ conversion. No VA is currently hitting this.
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     SECTION 2 — BY CHANNEL
+════════════════════════════════════════ -->
+<hr class="divider">
+<div class="section">
+
+  <div class="section-label">📊 Portfolio Snapshot</div>
+  <div class="kpi-row" style="grid-template-columns:repeat(5,1fr);">
+    <div class="kpi">
+      <div class="kl">Total Checkouts (90d)</div>
+      <div class="kv" style="color:var(--accent)">666</div>
+      <div class="ks">Airbnb 105 · VRBO 32 · BDC 163 · Expedia 366</div>
+    </div>
+    <div class="kpi">
+      <div class="kl">Tracked Reviews (90d)</div>
+      <div class="kv" style="color:var(--green)">138</div>
+      <div class="ks">Airbnb 45 · VRBO 13 · BDC 17 · Expedia 63</div>
+    </div>
+    <div class="kpi">
+      <div class="kl">Blended Conversion (90d)</div>
+      <div class="kv" style="color:var(--yellow)">20.7%</div>
+      <div class="ks">138 reviews / 666 checkouts · all 4 channels</div>
+    </div>
+    <div class="kpi" style="border-color:#5b8def55;background:linear-gradient(160deg,#161924,#0d1528);">
+      <div class="kl" style="color:var(--accent)">Blended Conversion (QTD)</div>
+      <div class="kv" style="color:var(--accent)">21.1%</div>
+      <div class="ks">109 reviews / 516 checkouts · Apr 1 – Jun 10</div>
+    </div>
+    <div class="kpi">
+      <div class="kl">#1 Channel (90d conv)</div>
+      <div class="kv" style="color:var(--airbnb)">Airbnb</div>
+      <div class="ks">42.9% · 45/105 · VRBO close at 40.6%</div>
+    </div>
+  </div>
+
+  <div class="section-label">Review Contribution Pareto — by Channel · 7 / 30 / 90 Days</div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px;">
+    <canvas id="pareto7"  height="220" style="background:var(--surf);border:1px solid var(--border);border-radius:14px;display:block;width:100%;"></canvas>
+    <canvas id="pareto30" height="220" style="background:var(--surf);border:1px solid var(--border);border-radius:14px;display:block;width:100%;"></canvas>
+    <canvas id="pareto90" height="220" style="background:var(--surf);border:1px solid var(--border);border-radius:14px;display:block;width:100%;"></canvas>
+  </div>
+
+  <div class="legend">
+    <strong style="color:var(--text)">Pareto reads:</strong>
+    <span class="lg"><span class="lgd" style="background:var(--green)"></span> Bars = # reviews, sorted high → low</span>
+    <span class="lg"><span class="lgd" style="background:var(--muted)"></span> % label on bar = conversion rate for that channel</span>
+  </div>
+  <div class="note info" style="margin-bottom:16px;">
+    <strong>Key insight (90d):</strong> Expedia alone accounts for 46% of all reviews despite only a 17% conversion rate — it dominates by sheer volume (366 checkouts). BDC has 163 checkouts but yields only 17 reviews (10.4%). Fixing BDC conversion to Airbnb levels would add ~50 reviews/quarter.
+  </div>
+  <div class="note info">
+    <strong>Methodology:</strong> Review conversion = reviews submitted ÷ guests checked out in the window. Airbnb, VRBO, BDC from Guesty timestamps. Expedia from Partner Central email receipts (admin@bijougetaways.com). VRBO volume is low (32 checkouts / 90d) so percentages swing widely.
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     SECTION 3 — BY REGION
+════════════════════════════════════════ -->
+<hr class="divider">
+<div class="section">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+    <div class="section-label" style="margin:0;">🗺️ Review Conversion by Region · All Channels</div>
+    <div style="display:flex;gap:6px;">
+      <button class="rwin-btn" onclick="setRegionWin('7d',this)" style="background:#1e2235;color:#7a849a;border:1px solid #2a2f45;border-radius:6px;padding:4px 10px;font-size:10px;font-weight:700;cursor:pointer;letter-spacing:.5px;">7D</button>
+      <button class="rwin-btn" onclick="setRegionWin('30d',this)" style="background:#1e2235;color:#7a849a;border:1px solid #2a2f45;border-radius:6px;padding:4px 10px;font-size:10px;font-weight:700;cursor:pointer;letter-spacing:.5px;">30D</button>
+      <button class="rwin-btn" onclick="setRegionWin('90d',this)" style="background:#5b8def22;color:#5b8def;border:1px solid #5b8def55;border-radius:6px;padding:4px 10px;font-size:10px;font-weight:700;cursor:pointer;letter-spacing:.5px;">90D</button>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:16px;">
+    <canvas id="rpareto_hawaii" height="210" style="background:var(--surf);border:1px solid var(--border);border-radius:14px;display:block;width:100%;"></canvas>
+    <canvas id="rpareto_napa"   height="210" style="background:var(--surf);border:1px solid var(--border);border-radius:14px;display:block;width:100%;"></canvas>
+    <canvas id="rpareto_usvi"   height="210" style="background:var(--surf);border:1px solid var(--border);border-radius:14px;display:block;width:100%;"></canvas>
+    <canvas id="rpareto_france" height="210" style="background:var(--surf);border:1px solid var(--border);border-radius:14px;display:block;width:100%;"></canvas>
+  </div>
+
+  <div class="legend">
+    <span class="lg"><span class="lgd" style="background:var(--airbnb)"></span> Airbnb</span>
+    <span class="lg"><span class="lgd" style="background:var(--vrbo)"></span> VRBO</span>
+    <span class="lg"><span class="lgd" style="background:var(--bdc)"></span> Booking.com</span>
+    <span class="lg"><span class="lgd" style="background:var(--exp)"></span> Expedia</span>
+    <span class="lg" style="margin-left:6px;">Bar = # reviews · % below bar = conversion rate · Toggle window above</span>
+  </div>
+
+  <div class="note warn" style="margin-top:10px;margin-bottom:10px;">⚠️ VRBO Paris+Miami 83.3% (90d) is on only 6 stays — small-sample effect. Monitor over next quarter before drawing conclusions.</div>
+
+  <div class="note info">
+    <strong>Expedia source:</strong> Review counts from "You have a new review" email receipts (noreply@expediapartnercentral.com → admin@bijougetaways.com), 63 reviews over 90 days. "Mediterranean Horizon" → France. "Grand Champions" → Hawaii. "Residence at the Four Seasons" → France/Miami (Baptiste). Real-time Feedback emails excluded.
+  </div>
+</div>
+
+<script>
+// ── Pareto charts ──────────────────────────────────────────────────────────
+const COLORS = {
+  Airbnb:      '#ff5a5f',
+  VRBO:        '#1d72d8',
+  'Booking.com': '#0a7abf',
+  Expedia:      '#f0b800',
+};
+
+const WINDOWS = {
+  pareto7: {
+    label: '7-Day (Jun 4–10)',
+    // [channel, reviews, checkouts]
+    data: [
+      ['Airbnb',       8,  19],
+      ['Booking.com',  2,  18],
+      ['Expedia',      1,  28],
+      ['VRBO',         0,   1],
+    ]
+  },
+  pareto30: {
+    label: '30-Day (May 12–Jun 10)',
+    data: [
+      ['Airbnb',      23,  53],
+      ['Expedia',     10, 110],
+      ['Booking.com',  8,  68],
+      ['VRBO',         3,   8],
+    ]
+  },
+  pareto90: {
+    label: '90-Day (Mar 13–Jun 10)',
+    data: [
+      ['Expedia',     63, 366],
+      ['Airbnb',      45, 105],
+      ['Booking.com', 17, 163],
+      ['VRBO',        13,  32],
+    ]
+  }
+};
+
+function drawPareto(canvasId, cfg) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.offsetWidth;
+  const H = 220;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const PAD = { top: 38, right: 12, bottom: 52, left: 36 };
+  const chartW = W - PAD.left - PAD.right;
+  const chartH = H - PAD.top - PAD.bottom;
+
+  const rows  = cfg.data;  // already sorted high→low
+  const total = rows.reduce((s, r) => s + r[1], 0);
+  const maxRev = rows[0][1];
+
+  const barW = (chartW / rows.length) * 0.62;
+  const gap  = (chartW / rows.length) * 0.38;
+
+  // ── title ──
+  ctx.fillStyle = '#7a849a';
+  ctx.font = 'bold 9px -apple-system,sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(cfg.label.toUpperCase(), W / 2, 14);
+
+  // ── Y-axis lines (left) ──
+  const yTicks = [0, 0.25, 0.5, 0.75, 1.0];
+  yTicks.forEach(t => {
+    const y =PAD.top + chartH * (1 - t);
+    ctx.strokeStyle = '#2a2f45';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(PAD.left, y);
+    ctx.lineTo(PAD.left + chartW, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#7a849a';
+    ctx.font = '9px -apple-system,sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(Math.round(maxRev * t), PAD.left - 4, y + 3);
+  });
+
+  // ── bars ──
+  rows.forEach((row, i) => {
+    const [ch, rev, stays] = row;
+    const x = PAD.left + i * (chartW / rows.length) + gap / 2;
+    const barH = maxRev > 0 ? (rev / maxRev) * chartH : 0;
+    const y = PAD.top + chartH - barH;
+
+    // bar
+    ctx.fillStyle = COLORS[ch] || '#5b8def';
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    ctx.roundRect(x, y, barW, barH, [4, 4, 0, 0]);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // review count on bar
+    if (rev > 0) {
+      ctx.fillStyle = '#e4e8f0';
+      ctx.font = 'bold 11px -apple-system,sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(rev, x + barW / 2, y - 4);
     }
 
     // conversion rate below bar
